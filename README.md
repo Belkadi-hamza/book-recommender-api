@@ -14,6 +14,8 @@ This API provides intelligent book recommendations based on a user's domain of i
 - **Input Validation**: Robust request validation using Pydantic
 - **Interactive Documentation**: Built-in Swagger UI and ReDoc
 - **Ranking System**: Returns top-N recommendations with similarity scores
+- **Cloud-based Model**: Model loaded from Google Drive for easy deployment
+- **Rich Book Details**: Returns title, price, reviews, and similarity scores
 
 ## Requirements
 
@@ -22,9 +24,10 @@ This API provides intelligent book recommendations based on a user's domain of i
 
 ## Installation
 
-1. **Clone the repository** (or navigate to the project directory):
+1. **Clone the repository**:
 ```bash
-cd ModelAPI
+git clone https://github.com/Belkadi-hamza/book-recommender-api.git
+cd book-recommender-api
 ```
 
 2. **Create a virtual environment** (recommended):
@@ -49,7 +52,7 @@ pip install -r requirements.txt
 
 ## Prerequisites
 
-Ensure you have the trained model file `recommender_model.pkl` in the project root directory. This file should contain:
+The trained model file `recommender_model.pkl` is automatically downloaded from Google Drive when the API starts. The model contains:
 - TF-IDF vectorizer
 - TF-IDF matrix for books
 - Books metadata DataFrame
@@ -108,12 +111,18 @@ uvicorn main:app --host 0.0.0.0 --port 8000
   "recommendations": [
     {
       "rank": 1,
-      "book_id": "12345",
+      "title": "Machine Learning with Python",
+      "price": 49.99,
+      "review_score": 4.5,
+      "review_summary": "Excellent book for beginners",
       "score": 0.8542
     },
     {
       "rank": 2,
-      "book_id": "67890",
+      "title": "Data Mining Techniques",
+      "price": 39.99,
+      "review_score": 4.2,
+      "review_summary": "Comprehensive guide to data mining",
       "score": 0.7821
     }
   ]
@@ -128,7 +137,10 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 | `count` | integer | Number of recommendations returned |
 | `recommendations` | array | List of recommended books |
 | `rank` | integer | Ranking position (1 = best match) |
-| `book_id` | string | Unique identifier for the book |
+| `title` | string | Book title |
+| `price` | float/null | Book price (null if not available) |
+| `review_score` | float/null | Average review score (null if not available) |
+| `review_summary` | string/null | Review summary text (null if not available) |
 | `score` | float | Similarity score (0.0 - 1.0, higher is better) |
 
 ## Example Usage
@@ -158,7 +170,11 @@ payload = {
 }
 
 response = requests.post(url, json=payload)
-print(response.json())
+data = response.json()
+
+if data["status"] == "success":
+    for book in data["recommendations"]:
+        print(f"{book['rank']}. {book['title']} - Score: {book['score']}")
 ```
 
 ### Using JavaScript
@@ -176,7 +192,11 @@ fetch('http://localhost:8000/api/v1/recommendations', {
   })
 })
 .then(response => response.json())
-.then(data => console.log(data));
+.then(data => {
+  data.recommendations.forEach(book => {
+    console.log(`${book.rank}. ${book.title} - $${book.price}`);
+  });
+});
 ```
 
 ## Error Handling
@@ -197,12 +217,15 @@ Example error response:
 ## Project Structure
 
 ```
-ModelAPI/
+book-recommender-api/
 ├── main.py                    # Main FastAPI application
 ├── requirements.txt           # Python dependencies
-├── recommender_model.pkl      # Trained ML model (required)
-├── README.md                  # Project documentation
-└── __pycache__/               # Python cache files
+├── vercel.json               # Vercel deployment configuration
+├── README.md                 # Project documentation
+├── .gitignore               # Git ignore file
+├── test/
+│   └── test.py              # API test script
+└── __pycache__/             # Python cache files
 ```
 
 ## Technology Stack
@@ -213,14 +236,49 @@ ModelAPI/
 - **pandas**: Data manipulation and analysis
 - **NumPy**: Numerical computing
 - **Uvicorn**: ASGI server for running the application
+- **Google Drive**: Cloud storage for ML model
 
 ## Algorithm Details
 
-1. **Text Combination**: User's domain and modules are combined into a single text
-2. **TF-IDF Vectorization**: Text is converted into numerical vectors
-3. **Cosine Similarity**: Similarity scores are calculated between user vector and all book vectors
-4. **Ranking**: Books are ranked by similarity score in descending order
-5. **Top-N Selection**: The top N books (based on limit) are returned
+1. **Model Loading**: ML model is downloaded from Google Drive on startup
+2. **Text Combination**: User's domain and modules are combined into a single text
+3. **TF-IDF Vectorization**: Text is converted into numerical vectors
+4. **Cosine Similarity**: Similarity scores are calculated between user vector and all book vectors
+5. **Ranking**: Books are ranked by similarity score in descending order
+6. **Top-N Selection**: The top N books (based on limit) are returned with full details
+
+## Deployment
+
+### Vercel
+
+The API is configured for deployment on Vercel:
+
+1. Push your code to GitHub
+2. Import the repository in Vercel dashboard
+3. Configure:
+   - **Install Command**: `pip install -r requirements.txt`
+   - **Build Command**: (leave empty)
+   - **Output Directory**: (leave empty)
+4. Deploy
+
+The model will be automatically downloaded from Google Drive on the first request.
+
+### Alternative Platforms
+
+This API can also be deployed on:
+- **Railway** (https://railway.app)
+- **Render** (https://render.com)
+- **Fly.io** (https://fly.io)
+- **Heroku**
+- **AWS Lambda** with API Gateway
+
+## Testing
+
+Run the test script to verify the API is working:
+
+```bash
+python test/test.py
+```
 
 ## Development
 
@@ -242,3 +300,8 @@ This is an academic project. For suggestions or improvements, please contact the
 ## Support
 
 For issues or questions, please refer to the interactive API documentation at http://localhost:8000/ when the server is running.
+
+## Author
+
+**Belkadi Hamza**
+- GitHub: [@Belkadi-hamza](https://github.com/Belkadi-hamza)
