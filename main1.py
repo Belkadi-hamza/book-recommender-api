@@ -6,51 +6,46 @@ from typing import List, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import pickle
-import os
+import requests
+import io
 
 # -----------------------------
 # Configuration
 # -----------------------------
-MODEL_PATH = "recommender_model.pkl"
+MODEL_URL = "https://drive.google.com/uc?export=download&id=1jR5h4E5CZfZWpGCwNqdq-i_19M62L75c"  # Direct download link
 
 # -----------------------------
 # FastAPI instance
 # -----------------------------
 app = FastAPI(
-    title="Book Recommendation API (Local)",
-    description="Professional API for recommending books using TF-IDF & cosine similarity (Local Model).",
+    title="Book Recommendation API",
+    description="Professional API for recommending books using TF-IDF & cosine similarity.",
     version="1.0.0",
-    docs_url="/",
-    redoc_url="/redoc"
+    docs_url="/",       # Swagger UI at root
+    redoc_url="/redoc"  # ReDoc at /redoc
 )
 
-# Enable CORS
+# Enable CORS (optional, needed if frontend calls API)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Allow all origins
     allow_methods=["*"],
     allow_headers=["*"]
 )
 
 # -----------------------------
-# Load model from local file
+# Load model from Google Drive
 # -----------------------------
-def load_model_from_file(path: str):
-    if not os.path.exists(path):
-        raise Exception(f"Model file not found at: {path}")
-    
-    print(f"Loading model from {path}...")
-    with open(path, "rb") as f:
-        model_data = pickle.load(f)
-    print("✓ Model loaded successfully.")
-    return model_data
+def load_model_from_drive(url: str):
+    print("Downloading model from Google Drive...")
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise Exception(f"Failed to download model. Status code: {response.status_code}")
+    # Load the pickle from bytes
+    return pickle.load(io.BytesIO(response.content))
 
-try:
-    tfidf, tfidf_matrix_books, df_books_meta = load_model_from_file(MODEL_PATH)
-    print("✓ Model initialized successfully.")
-except Exception as e:
-    print(f"✗ Error: Failed to load model: {e}")
-    raise
+tfidf, tfidf_matrix_books, df_books_meta = load_model_from_drive(MODEL_URL)
+print("Model loaded successfully.")
 
 # -----------------------------
 # Pydantic schemas
@@ -72,18 +67,6 @@ class RecommendationResponse(BaseModel):
     status: str
     count: int
     recommendations: List[Recommendation]
-
-# -----------------------------
-# Health check endpoint
-# -----------------------------
-@app.get("/health", tags=["Health"])
-def health_check():
-    return {
-        "status": "healthy",
-        "service": "Book Recommendation API (Local)",
-        "version": "1.0.0",
-        "model_source": "local_file"
-    }
 
 # -----------------------------
 # Recommendation endpoint
@@ -130,8 +113,8 @@ def recommend_books(payload: RecommendationRequest):
     )
 
 # -----------------------------
-# Root endpoint
+# Optional root redirect to Swagger
 # -----------------------------
 @app.get("/", include_in_schema=False)
 def redirect_to_docs():
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url="/")
